@@ -54,3 +54,45 @@ function replyMessage(replyToken, token, text) {
     });
 
     const options = {
+      hostname: 'api.line.me',
+      path: '/v2/bot/message/reply',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+        'Content-Length': Buffer.byteLength(body, 'utf8'),
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          console.error('LINE reply error:', data);
+        }
+        resolve();
+      });
+    });
+
+    req.on('error', reject);
+    req.write(body, 'utf8');
+    req.end();
+  });
+}
+
+async function linkUserToTicket(userId, ticketNum, GAS_URL) {
+  const url = GAS_URL
+    + '?action=registerLiff'
+    + '&ticketNum=' + ticketNum
+    + '&userId=' + encodeURIComponent(userId)
+    + '&t=' + Date.now();
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.success === true;
+  } catch (e) {
+    console.error('GAS連携エラー:', e);
+    return false;
+  }
+}
