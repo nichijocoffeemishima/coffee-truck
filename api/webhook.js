@@ -1,5 +1,6 @@
+const https = require('https');
+
 module.exports = async (req, res) => {
-  // GETリクエストは疎通確認用
   if (req.method !== 'POST') {
     return res.status(200).json({ status: 'ok' });
   }
@@ -11,17 +12,12 @@ module.exports = async (req, res) => {
   try {
     await Promise.all(events.map(async (event) => {
 
-      // 友だち追加
       if (event.type === 'follow') {
         await replyMessage(event.replyToken, LINE_TOKEN,
-          'ご来店ありがとうございます！☕\n\n' +
-          'お手元の番号札の番号を\n' +
-          '数字だけ送信してください。\n' +
-          '（例: 3）'
+          'ご来店ありがとうございます！\n\nお手元の番号札の番号を\n数字だけ送信してください。\n（例: 3）'
         );
       }
 
-      // メッセージ受信
       if (event.type === 'message' && event.message.type === 'text') {
         const num    = parseInt(event.message.text.trim());
         const userId = event.source.userId;
@@ -32,14 +28,11 @@ module.exports = async (req, res) => {
 
         if (ok) {
           await replyMessage(event.replyToken, LINE_TOKEN,
-            '番号札 #' + String(num).padStart(3, '0') + ' で登録しました！☕\n\n' +
-            'できあがりましたらこちらでお知らせします。\n' +
-            'しばらくお待ちください。'
+            '番号札 #' + String(num).padStart(3, '0') + ' で登録しました！\n\nできあがりましたらお知らせします。\nしばらくお待ちください。'
           );
         } else {
           await replyMessage(event.replyToken, LINE_TOKEN,
-            '番号 ' + num + ' の注文が見つかりませんでした。\n' +
-            '正しい番号をもう一度送ってください。'
+            '番号 ' + num + ' の注文が見つかりませんでした。\n正しい番号をもう一度送ってください。'
           );
         }
       }
@@ -53,36 +46,11 @@ module.exports = async (req, res) => {
   }
 };
 
-async function replyMessage(replyToken, token, text) {
-  const payload = JSON.stringify({
-    replyToken: replyToken,
-    messages: [{ type: 'text', text: text }],
-  });
-  const encoded = new TextEncoder().encode(payload);
-  const response = await fetch('https://api.line.me/v2/bot/message/reply', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer ' + token,
-    },
-    body: encoded,
-  });
-  const result = await response.json();
-  if (!response.ok) console.error('LINE reply error:', result);
-}
+function replyMessage(replyToken, token, text) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      replyToken: replyToken,
+      messages: [{ type: 'text', text: text }],
+    });
 
-async function linkUserToTicket(userId, ticketNum, GAS_URL) {
-  const url = GAS_URL
-    + '?action=registerLiff'
-    + '&ticketNum=' + ticketNum
-    + '&userId=' + encodeURIComponent(userId)
-    + '&t=' + Date.now();
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    return data.success === true;
-  } catch (e) {
-    console.error('GAS連携エラー:', e);
-    return false;
-  }
-}
+    const options = {
