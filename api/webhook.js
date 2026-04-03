@@ -58,13 +58,14 @@ async function replyMessage(replyToken, token, text) {
     replyToken: replyToken,
     messages: [{ type: 'text', text: text }],
   });
+  const encoded = new TextEncoder().encode(payload);
   const response = await fetch('https://api.line.me/v2/bot/message/reply', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json; charset=UTF-8',
       'Authorization': 'Bearer ' + token,
     },
-    body: payload,
+    body: encoded,
   });
   const result = await response.json();
   if (!response.ok) console.error('LINE reply error:', result);
