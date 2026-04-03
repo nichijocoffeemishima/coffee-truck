@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>番号札登録</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #faf8f4;
+    --surface: #ffffff;
+    --border: #e8e2d9;
+    --text: #1a1612;
+    --muted: #8a8278;
+    --accent: #c8963e;
+    --green: #4a9068;
+    --green-bg: #edf7f1;
+    --font: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  }
+  body {
+    background: var(--bg);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 24px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+
+  .shop-name {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin-bottom: 20px;
+  }
+
+  .icon {
+    width: 56px;
+    height: 56px;
+    background: #fdf3e3;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+  }
+  .icon svg { width: 28px; height: 28px; }
+
+  .title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  .num-display {
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .num-display.empty { color: #e0d8cc; }
+
+  .num-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+
+  /* 数字キーパッド */
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .key {
+    aspect-ratio: 1;
+    background: #f5f1eb;
+    border: none;
+    border-radius: 12px;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.1s;
+    font-family: var(--font);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .key:active { background: #ebe5db; transform: scale(0.95); }
+  .key.zero { grid-column: 2; }
+  .key.del {
+    background: transparent;
+    color: var(--muted);
+    font-size: 18px;
+  }
+  .key.del:active { background: #f0ece4; }
+
+  .btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: var(--font);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .btn-submit:disabled { opacity: 0.4; cursor: default; }
+  .btn-submit:not(:disabled):active { opacity: 0.85; }
+
+  /* 完了画面 */
+  .success {
+    display: none;
+    text-align: center;
+  }
+  .success.show { display: block; }
+  .success-icon {
+    width: 72px;
+    height: 72px;
+    background: var(--green-bg);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+  }
+  .success-icon svg { width: 36px; height: 36px; }
+  .success-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .success-num {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+  .success-msg {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* エラー・ローディング */
+  .loading {
+    text-align: center;
+    padding: 20px 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .error-msg {
+    font-size: 12px;
+    color: #c0533a;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- ローディング中 -->
+  <div id="loading" class="loading">読み込み中...</div>
+
+  <!-- 番号入力フォーム -->
+  <div id="form-area" style="display:none;">
+    <div class="shop-name">Coffee Truck</div>
+
+    <div class="icon">
+      <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 8h16l-2 12H8L6 8z" stroke="#c8963e" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M20 8c0-2.2 1.8-4 4-4" stroke="#c8963e" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M4 22h20" stroke="#c8963e" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div class="title">番号札を登録</div>
+    <div class="subtitle">お手元の番号札の<br>番号を入力してください</div>
+
+    <div class="num-display empty" id="num-display">—</div>
+    <div class="num-label">番号札の番号</div>
+
+    <div class="keypad">
+      <button class="key" onclick="pressKey('1')">1</button>
+      <button class="key" onclick="pressKey('2')">2</button>
+      <button class="key" onclick="pressKey('3')">3</button>
+      <button class="key" onclick="pressKey('4')">4</button>
+      <button class="key" onclick="pressKey('5')">5</button>
+      <button class="key" onclick="pressKey('6')">6</button>
+      <button class="key" onclick="pressKey('7')">7</button>
+      <button class="key" onclick="pressKey('8')">8</button>
+      <button class="key" onclick="pressKey('9')">9</button>
+      <button class="key zero" onclick="pressKey('0')">0</button>
+      <button class="key del" onclick="deleteKey()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M20 12H4M4 12l6-6M4 12l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <button class="btn-submit" id="btn-submit" disabled onclick="submit()">
+      登録する
+    </button>
+    <div class="error-msg" id="error-msg"></div>
+  </div>
+
+  <!-- 完了画面 -->
+  <div id="success-area" class="success">
+    <div class="success-icon">
+      <svg viewBox="0 0 36 36" fill="none"><path d="M8 18l7 7 13-13" stroke="#4a9068" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="success-title">登録完了！</div>
+    <div class="success-num" id="success-num"></div>
+    <div class="success-msg">
+      ご注文ありがとうございます☕<br>
+      できあがりましたら<br>
+      LINEでお知らせします。<br>
+      しばらくお待ちください。
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+//  設定（ここだけ書き換えてください）
+// ============================================================
+var LIFF_ID  = '2009682220-QdZuAqmN';
+var GAS_URL  = 'recobainter2010@live.com';  // 例: https://script.google.com/macros/s/…/exec
+// ============================================================
+
+var currentNum = '';
+var lineUserId = '';
+
+// LIFF初期化
+liff.init({ liffId: LIFF_ID })
+  .then(function() {
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+    return liff.getProfile();
+  })
+  .then(function(profile) {
+    if (!profile) return;
+    lineUserId = profile.userId;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('form-area').style.display = 'block';
+  })
+  .catch(function(err) {
+    document.getElementById('loading').textContent = '読み込みに失敗しました。再度QRを読み取ってください。';
+    console.error(err);
+  });
+
+// キーパッド操作
+function pressKey(key) {
+  if (currentNum.length >= 3) return;
+  currentNum += key;
+  updateDisplay();
+}
+
+function deleteKey() {
+  currentNum = currentNum.slice(0, -1);
+  updateDisplay();
+}
+
+function updateDisplay() {
+  var display = document.getElementById('num-display');
+  var btn = document.getElementById('btn-submit');
+  if (currentNum === '') {
+    display.textContent = '—';
+    display.classList.add('empty');
+    btn.disabled = true;
+  } else {
+    display.textContent = String(parseInt(currentNum)).padStart(3, '0');
+    display.classList.remove('empty');
+    btn.disabled = false;
+  }
+  document.getElementById('error-msg').textContent = '';
+}
+
+// 登録送信
+function submit() {
+  var num = parseInt(currentNum);
+  if (isNaN(num) || num < 1) return;
+
+  var btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = '登録中...';
+
+  // GASにGETリクエストで送信（POSTの302問題を回避）
+  var url = GAS_URL
+    + '?action=registerLiff'
+    + '&ticketNum=' + num
+    + '&userId=' + encodeURIComponent(lineUserId)
+    + '&t=' + Date.now();
+
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        showSuccess(num);
+      } else {
+        showError(data.error || '登録に失敗しました。もう一度試してください。');
+        btn.disabled = false;
+        btn.textContent = '登録する';
+      }
+    })
+    .catch(function() {
+      showError('通信エラーが発生しました。もう一度試してください。');
+      btn.disabled = false;
+      btn.textContent = '登録する';
+    });
+}
+
+function showSuccess(num) {
+  document.getElementById('form-area').style.display = 'none';
+  var successArea = document.getElementById('success-area');
+  successArea.classList.add('show');
+  document.getElementById('success-num').textContent = '#' + String(num).padStart(3, '0');
+}
+
+function showError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+}
+</script>
+</body>
+</html>
