@@ -29,20 +29,29 @@ if (event.type === 'message' && event.message.type === 'text') {
   const userId  = event.source.userId;
   const cleaned = text.replace(/^番号[：:：\s]*/,'').trim();
   const num     = parseInt(cleaned);
+
   if (isNaN(num) || num < 1 || num > 999) return;
 
-        const ok = await linkUserToTicket(userId, num, GAS_URL);
+  const result = await linkUserToTicket(userId, num, GAS_URL);
 
-        if (ok) {
-          await replyMessage(event.replyToken, LINE_TOKEN,
-            '番号札 #' + String(num).padStart(3, '0') + ' で登録しました！\n\nできあがりましたらお知らせします。\nしばらくお待ちください。'
-          );
-        } else {
-          await replyMessage(event.replyToken, LINE_TOKEN,
-            '番号 ' + num + ' の注文が見つかりませんでした。\n正しい番号をもう一度送ってください。'
-          );
-        }
-      }
+  if (result === 'success') {
+    await replyMessage(event.replyToken, LINE_TOKEN,
+      '番号札 #' + String(num).padStart(3, '0') + ' で登録しました！\n\n' +
+      'できあがりましたらお知らせします。\n' +
+      'しばらくお待ちください。'
+    );
+  } else if (result === 'already_taken') {
+    await replyMessage(event.replyToken, LINE_TOKEN,
+      '番号 ' + num + ' はすでに別のお客様が登録済みです。\n\n' +
+      '正しい番号札の番号を\nもう一度送ってください。'
+    );
+  } else {
+    await replyMessage(event.replyToken, LINE_TOKEN,
+      '番号 ' + num + ' の注文が見つかりませんでした。\n' +
+      '正しい番号をもう一度送ってください。'
+    );
+  }
+}
     }));
 
     res.status(200).json({ status: 'ok' });
@@ -97,9 +106,11 @@ async function linkUserToTicket(userId, ticketNum, GAS_URL) {
   try {
     const response = await fetch(url);
     const data = await response.json();
-    return data.success === true;
+    if (data.success) return 'success';
+    if (data.error === 'already_taken') return 'already_taken';
+    return 'not_found';
   } catch (e) {
     console.error('GAS連携エラー:', e);
-    return false;
+    return 'not_found';
   }
 }
