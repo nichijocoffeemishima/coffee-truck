@@ -33,41 +33,41 @@ module.exports = async (req, res) => {
 
         // 「何組待ち」「待ち人数」などの問い合わせ
         if (text.match(/何組|待ち|まち|何人|なんにん/)) {
-          const count = await getWaitCount(GAS_URL);
-          await replyMessage(event.replyToken, LINE_TOKEN,
-            count === 0
-              ? '現在お待ちのお客様はいません☕\nすぐにご提供できます！'
-              : '現在 ' + count + ' 組お待ちです。\nもうしばらくお待ちください☕'
-          );
-          return;
-        }
+  const count = await getWaitCount(GAS_URL);
+  await replyMessage(event.replyToken, LINE_TOKEN,
+    count === 0
+      ? '現在お待ちのお客様はいません☕\nすぐにご提供できます！'
+      : '現在 ' + count + ' 組お待ちです☕\nもうしばらくお待ちください。'
+  );
+  return;
+}
 
         if (isNaN(num) || num < 1 || num > 999) return;
 
         const result = await linkUserToTicket(userId, num, GAS_URL);
 
-        if (result === 'success') {
-          // 登録成功時に待ち人数も取得して表示
-          const count = await getWaitCount(GAS_URL);
-          const waitMsg = count <= 1
-            ? 'まもなくご提供できます！'
-            : '現在 ' + count + ' 組お待ちです。';
-          await replyMessage(event.replyToken, LINE_TOKEN,
-            '番号札 #' + String(num).padStart(3, '0') + ' で登録しました！\n\n' +
-            waitMsg + '\n\n' +
-            'できあがりましたらこちらでお知らせします。\nしばらくお待ちください☕'
-          );
-        } else if (result === 'already_taken') {
-          await replyMessage(event.replyToken, LINE_TOKEN,
-            '番号 ' + num + ' はすでに別のお客様が登録済みです。\n\n' +
-            '正しい番号札の番号を\nもう一度送ってください。'
-          );
-        } else {
-          await replyMessage(event.replyToken, LINE_TOKEN,
-            '番号 ' + num + ' の注文が見つかりませんでした。\n' +
-            '正しい番号をもう一度送ってください。'
-          );
-        }
+        if (result.status === 'success') {
+          const position = result.position;
+          const total    = result.total;
+          const waitMsg  = position === 1
+    ? 'あなたが最初のお客様です！\nまもなくご提供できます☕'
+    : 'ただいま ' + total + ' 組お待ちの中、\nあなたは ' + position + ' 番目です。';
+  await replyMessage(event.replyToken, LINE_TOKEN,
+    '番号札 #' + String(num).padStart(3, '0') + ' で登録しました！\n\n' +
+    waitMsg + '\n\n' +
+    'できあがりましたらこちらでお知らせします。\nしばらくお待ちください☕'
+  );
+} else if (result.status === 'already_taken') {
+  await replyMessage(event.replyToken, LINE_TOKEN,
+    '番号 ' + num + ' はすでに別のお客様が登録済みです。\n\n' +
+    '正しい番号札の番号を\nもう一度送ってください。'
+  );
+} else {
+  await replyMessage(event.replyToken, LINE_TOKEN,
+    '番号 ' + num + ' の注文が見つかりませんでした。\n' +
+    '正しい番号をもう一度送ってください。'
+  );
+}
       }
     }));
 
@@ -131,11 +131,11 @@ async function linkUserToTicket(userId, ticketNum, GAS_URL) {
   try {
     const response = await fetch(url);
     const data = await response.json();
-    if (data.success) return 'success';
-    if (data.error === 'already_taken') return 'already_taken';
-    return 'not_found';
+    if (data.success) return { status: 'success', position: data.position, total: data.total };
+    if (data.error === 'already_taken') return { status: 'already_taken' };
+    return { status: 'not_found' };
   } catch (e) {
     console.error('GAS連携エラー:', e);
-    return 'not_found';
+    return { status: 'not_found' };
   }
 }
