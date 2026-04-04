@@ -13,16 +13,23 @@ module.exports = async (req, res) => {
     await Promise.all(events.map(async (event) => {
 
       if (event.type === 'follow') {
-        await replyMessage(event.replyToken, LINE_TOKEN,
-          'ご来店ありがとうございます！\n\nお手元の番号札の番号を\n数字だけ送信してください。\n（例: 3）'
-        );
-      }
+  await replyMessage(event.replyToken, LINE_TOKEN,
+    'ご登録ありがとうございます☕\n\n' +
+    'Decaf specialty 日常です。\n\n' +
+    '下のメニューから、\n' +
+    '番号札呼び出しシステム\n' +
+    'をお使いいただけます。\n\n' +
+    'なお、クーポン等\nは現在準備中です。\n' +
+    '開始しましたらお知らせいたします。'
+  );
+}
 
-      if (event.type === 'message' && event.message.type === 'text') {
-        const num    = parseInt(event.message.text.trim());
-        const userId = event.source.userId;
-
-        if (isNaN(num) || num < 1 || num > 999) return;
+if (event.type === 'message' && event.message.type === 'text') {
+  const text    = event.message.text.trim();
+  const userId  = event.source.userId;
+  const cleaned = text.replace(/^番号[：:：\s]*/,'').trim();
+  const num     = parseInt(cleaned);
+  if (isNaN(num) || num < 1 || num > 999) return;
 
         const ok = await linkUserToTicket(userId, num, GAS_URL);
 
